@@ -1,13 +1,19 @@
 import base64
-from pathlib import Path
 import shutil
 import sys
-from image_upscaler import upscale_image
-from caption_generator import generate_captions
+from pypinyin import lazy_pinyin
+from pathlib import Path
+from image_upscaler import ImageUpscaler
+from caption_generator import CaptionGenerator
 
 DATASET_DIR = Path("./dataset")
 OUTPUT_DIR = Path("./train")
 ACCEPTED_IMAGE_EXTS = {'.jpg', '.jpeg', '.png'}
+
+
+def convert_to_class_token(obj_name: str) -> str:
+    pinyin_list = lazy_pinyin(obj_name)
+    return "".join(pinyin_list).upper()
 
 
 def get_image_base64_url(image_file: Path) -> str:
@@ -23,9 +29,14 @@ def get_image_base64_url(image_file: Path) -> str:
 
 
 image_dirs = [x for x in DATASET_DIR.iterdir() if x.is_dir()]
+caption_generator = CaptionGenerator()
+image_upscaler = ImageUpscaler()
 
 for image_dir in image_dirs:
-    print(f"正在处理: {image_dir.stem}")
+    obj_name = image_dir.stem
+    class_token = convert_to_class_token(obj_name)
+
+    print(f"正在处理: {obj_name} ({class_token})")
 
     # 1. 规范化文件名，全部以两位数字命名（假设训练图像均不超过100张），以保证有序性
     filenames = [x.absolute() for x in image_dir.iterdir() if x.is_file()
@@ -39,9 +50,8 @@ for image_dir in image_dirs:
         img_id += 1
 
     # 2. 生成 caption
-    obj_name = image_dir.stem
     base64_images = {image_file.stem: get_image_base64_url(image_file) for image_file in image_files}
-    image_captions = generate_captions(obj_name, base64_images)
+    image_captions = caption_generator.generate_captions(obj_name, class_token, base64_images)
     if image_captions is None:
         print(f"无法获取'{obj_name}'的 Caption")
         sys.exit(1)
@@ -54,4 +64,4 @@ for image_dir in image_dirs:
             fp.write(caption)
 
     # 3. 生成超分图
-    upscale_image(image_dir, train_dir)
+    image_upscaler.upscale_image(image_dir, train_dir)
