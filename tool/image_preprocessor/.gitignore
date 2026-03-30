@@ -1,6 +1,6 @@
 # Private data
 dataset/
-train/
+dataset_processed/
 
 # Python-generated files
 __pycache__/

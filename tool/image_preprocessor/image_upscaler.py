@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 from spandrel import ModelLoader, ImageModelDescriptor
 from huggingface_hub import hf_hub_download
 import os
@@ -6,6 +7,8 @@ import cv2
 import torch
 import numpy as np
 import glob
+import shutil
+import sys
 
 
 class ImageUpscaler:
@@ -39,7 +42,25 @@ class ImageUpscaler:
         self.__model = model
         self.__device = device
 
-    def upscale_image(self, input_dir: Path, output_dir: Path) -> None:
+    def upscale_image(self, input_dir: Path, output_dir: Path, ratio:  Literal["original", "x2", "x4"] = "original") -> None:
+        if ratio == "original":
+            input_dir = Path(input_dir)
+            output_dir = Path(output_dir)
+            if not input_dir.exists():
+                print(f"输入目录不存在: {input_dir}")
+                return
+            if input_dir.resolve() == output_dir.resolve():
+                print("输入输出目录相同，无需复制。")
+                return
+            try:
+                if output_dir.exists():
+                    shutil.rmtree(output_dir)
+                shutil.copytree(input_dir, output_dir)
+                print(f"已将 {input_dir} 下所有内容复制到 {output_dir}")
+            except Exception as e:
+                print(f"复制失败: {e}")
+            return
+
         # 目标分辨率 (1024 是 Flux 的训练标准)
         target_size = 1024
 
